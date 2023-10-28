@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.awt.*;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -5,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 
 public class BMPPanelInter extends PanelInter{
     private String infilepath = null;
@@ -294,7 +296,7 @@ public class BMPPanelInter extends PanelInter{
         return target;
     }
 
-    private void setColor(int[][] target, int bit)
+    private void setColor(int[][] target, int bit) // 흑백일 경우 각 위치의 값을 설정하는 과정
     {
         for(int i = 0; i < target.length; i++)
         {
@@ -308,7 +310,7 @@ public class BMPPanelInter extends PanelInter{
             }
         }
     }
-    private void changeColor(int[][]target, byte[] data)
+    private void changeColor(int[][]target, byte[] data) // 컬러테이블에 존재하는 컬러를 2차원 배열에 넣기 적합하게 세팅하는 과정
     {
         for(int i = 0; i < target.length; i++)
         {
@@ -320,7 +322,21 @@ public class BMPPanelInter extends PanelInter{
     }
     public void saveImage(int[][] newImageData, int[][] drawData, String filePath, Boolean outColor)
     {
-        int bit = bitCount(newImageData);
+        int bit = bitCount(newImageData, drawData);
+        if(bit == 8)
+        {
+            int answer = JOptionPane.showConfirmDialog(Target,"RLE8 압축을 하시겠습니까?", "BMP파일 출력", JOptionPane.YES_NO_OPTION);
+            if( answer == 1 || answer == -1)// 1일때는 No -1일때는 X누름
+            {
+                // No일때 그냥 넘기기
+            }
+            else// Yes일때
+            {
+                saveImageRLE(newImageData, bit, filePath, outColor);
+                return;
+            }
+
+        }
         ArrayList<Byte> imagedata = new ArrayList<Byte>();
         if(bit == 24)
         {
@@ -399,11 +415,11 @@ public class BMPPanelInter extends PanelInter{
             }
         }
 
-        byte[] header = headerMake(imagedata.size(), newImageData, bit, outColor);
+        byte[] header = headerMake(imagedata.size(), newImageData, bit, outColor, 0);
         byte[] colortable = null;
         if(outColor)//outColor
         {
-            colortable = new byte[buffer.size()*4];
+ /*           colortable = new byte[buffer.size()*4];
             for(int i = 0,j = 0; i < buffer.size()*4;)
             {
                 int b = buffer.get(j) %1000;
@@ -414,8 +430,21 @@ public class BMPPanelInter extends PanelInter{
                 colortable[i++] = (byte) (r & 0xff);
                 colortable[i++] = (byte) 0;
                 j++;
-            }
+            }*/
+            colortable = new byte[buffer.size() * 4];
+            for (int i = 0,j = 0; j < buffer.size();)
+            {
+                int a = buffer.get(j);
 
+                int b = a %1000;
+                int g = (a %1000000 - b ) /1000;
+                int r = a/ 1000000;
+                colortable[i++] = (byte) (b & 0xff);
+                colortable[i++] = (byte) (g & 0xff);
+                colortable[i++] = (byte) (r & 0xff);
+                colortable[i++] = (byte) 0;
+                j++;
+            }
         }
         else if(!outColor && bit != 24)
         {
@@ -469,16 +498,21 @@ public class BMPPanelInter extends PanelInter{
         }
     }
 
-    private byte[] headerMake(int a , int[][] data,int bit, boolean outColor)
+    private byte[] headerMake(int a , int[][] data,int bit, boolean outColor, int Compression)
     {
         int temp = (int) Math.pow(2,bit) * 4;
         if(bit == 24)
         {
             temp = 0;
         }
+        if(outColor)
+        {
+            temp = buffer.size()*4;
+        }
         int biSizeImage = data.length * data[0].length *bit / 8 +2 ;
         int number = a+ 54 + temp + 2;
-        int dataoffset = 54+temp;
+        int dataoffset = 54 + temp;
+
         byte[] header = new byte[54];
         header[0] = 0x42; //Magicnumber
         header[1] = 0x4D; // 매직넘버 끝
@@ -501,7 +535,7 @@ public class BMPPanelInter extends PanelInter{
         header[25] = (byte) ((data.length  >> 24) & 0xFF);
         header[26] = 0x01;// biplanes 항상 1인 부분
         header[28] = (byte) (bit & 0xFF);// 한 픽섹을 표현하기 위한 비트수 28~29
-        header[29] = (byte) ((bit >> 8)& 0xFF);
+        header[30] = (byte) (Compression& 0xFF); // 압축 형식 표시 30~33
         header[34] = (byte) (biSizeImage & 0xFF); // 픽셀 데이터 저장공간
         header[35] = (byte) ((biSizeImage  >> 8) & 0xFF);
         header[36] = (byte) ((biSizeImage  >> 16) & 0xFF);
@@ -512,7 +546,8 @@ public class BMPPanelInter extends PanelInter{
         header[43] = 0x0B;
         if(outColor)
         {
-        header[46] = (byte) (temp & 0xFF); // 넓이
+            temp /= 4;
+        header[46] = (byte) (temp & 0xFF); // 컬러테이블 크기
         header[47] = (byte) ((temp  >> 8) & 0xFF);
         header[48] = (byte) ((temp  >> 16) & 0xFF);
         header[49] = (byte) ((temp  >> 24) & 0xFF);
@@ -522,7 +557,7 @@ public class BMPPanelInter extends PanelInter{
     }
 
 
-    private int bitCount(int[][] imageData) // 몇비트로 파일을 만들면 가장 효율적인지 확인하는 함수
+    private int bitCount(int[][] imageData, int[][] drawData) // 몇비트로 파일을 만들면 가장 효율적인지 확인하는 함수
     {
         int height = imageData.length;
         int width = imageData[0].length;
@@ -530,6 +565,10 @@ public class BMPPanelInter extends PanelInter{
         {
             for(int j = 0; j < width; j++)
             {
+                if(drawData[i][j] != 0)
+                {
+                    imageData[i][j] = drawData[i][j];
+                }
                 if(!buffer.contains(imageData[i][j]))
                 {
                     if(buffer.size() > 256)
@@ -551,69 +590,90 @@ public class BMPPanelInter extends PanelInter{
         return -1;
     }
 
-    public void saveImageRLE(int[][] newImageData, int[][] drawData, String filePath, Boolean outColor)
+    public void saveImageRLE(int[][] newImageData, int bit, String filePath, Boolean outColor)
     {
-        int bit = bitCount(newImageData);
         ArrayList<Byte> imagedata = new ArrayList<Byte>();
         for (int i = newImageData.length - 1; i >=0; i--)
         {
-            for (int j = 0; j < newImageData[0].length;)
-            {
-                byte temp = 0 ;
-                for (int k = (8 / bit)-1; k >= 0; k--, j++)
+            Boolean switched = false;
+            int j = 0;
+            int mode = 0; // Undefined Mode
+            ArrayList<Integer> temp = new ArrayList<Integer>();
+            while( j < newImageData[0].length) {
+                if(j == newImageData[0].length-1)
                 {
-                    temp += (byte) ((byte) buffer.indexOf(newImageData[i][j]) << (bit*k));
+                    temp.add(newImageData[i][j]);
+                    Encode(imagedata,temp);
+                    break;
                 }
-                imagedata.add(temp);
-            }
-            while((imagedata.size() % 4) != 0)
-            {
-                imagedata.add((byte)0);
-            }
-        }
-
-                /*for (int i = newImageData.length - 1; i >=0; i--)
+                if (newImageData[i][j] == newImageData[i][j + 1])
                 {
-                    for (int j = 0; j < newImageData[0].length;)
-                    {
-                        byte temp = 0 ;
-                        for (int k = (8 / bit)-1; k >= 0; k--, j++)
-                        {
-                            temp += (byte) ((byte) ((newImageData[i][j] % 1000)/ Math.pow(2,8-bit)) << (bit*k));
+                    switched = mode == 2;
+                    mode = 1; // Encoded Mode
 
-                        }
-                        if(bit == 1)
-                        {
-                            temp = (byte) ~temp;
-                        }
-                        imagedata.add(temp);
-                        *//*for (int k = 0; k < (8 / bit); k++, j++)
-                        {
-                            imagedata.add((byte) );
-                        }*//*
-                    }
-                    while((imagedata.size() % 4) != 0)
-                    {
-                        imagedata.add((byte)0);
-                    }
-                }*/
+                } else
+                {
+                    switched = mode == 1;
+                    mode = 2; // Absolute Mode
+                }
 
-        byte[] header = headerMake(imagedata.size(), newImageData, bit, outColor);
-        byte[] colortable = null;
-        colortable = new byte[buffer.size()*4];
-        for(int i = 0,j = 0; i < buffer.size()*4;)
-        {
-            int b = buffer.get(j) %1000;
-            int g = (buffer.get(j) %1000000 - b ) /1000;
-            int r = buffer.get(j) / 1000000;
-            colortable[i++] = (byte) (b & 0xff);
-            colortable[i++] = (byte) (g & 0xff);
-            colortable[i++] = (byte) (r & 0xff);
-            colortable[i++] = (byte) 0;
-            j++;
+                if(switched)
+                {
+                    if(mode == 2)
+                    {
+                        temp.add(newImageData[i][j]);
+                    }
+                    Encode(imagedata,temp);
+                    temp.clear();
+                    if(mode == 1)
+                    {
+                        temp.add(newImageData[i][j]);
+                    }
+
+                }
+                else
+                {
+                    temp.add(newImageData[i][j]);
+                }
+                j++;
+            }
+            imagedata.add((byte) 0);
+            imagedata.add((byte) 1);
         }
 
-        try(FileOutputStream fos=new FileOutputStream(filePath + ".bmp")){
+        byte[] header = headerMake(imagedata.size(), newImageData, bit, outColor, 1);
+        byte[] colortable = null;
+        if(outColor)
+        {
+            colortable = new byte[buffer.size() * 4];
+            for (int i = 0, j = 0; i < buffer.size() * 4; ) {
+                int b = buffer.get(j) % 1000;
+                int g = (buffer.get(j) % 1000000 - b) / 1000;
+                int r = buffer.get(j) / 1000000;
+                colortable[i++] = (byte) (b & 0xff);
+                colortable[i++] = (byte) (g & 0xff);
+                colortable[i++] = (byte) (r & 0xff);
+                colortable[i++] = (byte) 0;
+                j++;
+            }
+        }
+        else
+        {
+            colortable = new byte[(int) Math.pow(2, bit) * 4];
+            for (int i = 0, j = 0; i < (int) Math.pow(2, bit) * 4; ) {
+                int a = (int) (Math.pow(2, 8 - bit) * j);
+                if (bit != 8) {
+                    a += j;
+                }
+                colortable[i++] = (byte) (a & 0xff);
+                colortable[i++] = (byte) (a & 0xff);
+                colortable[i++] = (byte) (a & 0xff);
+                colortable[i++] = (byte) 0;
+                j++;
+            }
+        }
+
+        try(FileOutputStream fos=new FileOutputStream(filePath + "RLE8.bmp")){
             fos.write(header);
             fos.write(colortable);
 
@@ -624,11 +684,47 @@ public class BMPPanelInter extends PanelInter{
             fos.write(data);
             byte[] end = {00,00};
             fos.write(end);
-
         }
         catch(IOException e)
         {
 
+        }
+    }
+
+    private void Encode(ArrayList<Byte> imagedata, ArrayList<Integer> temp)
+    {
+        if(temp.size() == 0)// Encoded 모드 에서 Encoded 모드로 넘어갈때 ex) 5 5 5 5 6 6 6 6 일때 그냥 넘어가는 코드
+        {
+            return;
+        }
+        if(temp.size() == 1)
+        {
+            imagedata.add((byte) temp.size());
+            imagedata.add((byte) buffer.indexOf(temp.get(0)));
+        }
+
+        else if(Objects.equals(temp.get(0), temp.get(1)))
+        {
+            imagedata.add((byte) temp.size());
+            imagedata.add((byte) buffer.indexOf(temp.get(0)));
+        }
+        else
+        {
+            imagedata.add((byte) 0);
+            if(temp.size() %2 == 1)
+            {
+                temp.add(0);
+            }
+            imagedata.add((byte) temp.size());
+            for(int i = 0; i < temp.size(); i++)
+            {
+                if(temp.get(i)==0)
+                {
+                    imagedata.add((byte) 0);
+                    continue;
+                }
+                imagedata.add((byte) buffer.indexOf(temp.get(i)));
+            }
         }
     }
 }

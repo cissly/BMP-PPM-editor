@@ -177,7 +177,7 @@ public class main {
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    String answer = JOptionPane.showInputDialog(null, "이름을 입력하세요", "BMP저장", 0);
+                    String answer = JOptionPane.showInputDialog(null, "이름을 입력하세요", "PPM,PGM저장", 0);
                     if (answer != null)
                     {
                         target.savePPMImage(answer);
