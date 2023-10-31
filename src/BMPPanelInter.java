@@ -12,7 +12,7 @@ public class BMPPanelInter extends PanelInter{
     private String infilepath = null;
     private Boolean isColor = false;
     ArrayList<Integer> buffer = new ArrayList<Integer>();
-    public BMPPanelInter(String temppath, Component tempCom)
+    public BMPPanelInter(String temppath, Component tempCom) // 파일의 입력을 받아 출력할때 사용하는 생성자
     {
         super(tempCom);
         infilepath = temppath;
@@ -20,15 +20,15 @@ public class BMPPanelInter extends PanelInter{
     public BMPPanelInter(Component tempCom)
     {
         super(tempCom);
-    }
+    } // 출력에서 이 클래스의 saveImage부분만 필요할때 사용되는 생성자
 
     @Override
     public boolean getIsColor() {
         return isColor;
-    }
+    } // 클래스의 isColor를 가져가는 함수
 
     @Override
-    public int[][] turnOn() {
+    public int[][] turnOn() {// 파일의 헤더를 읽어 어떤 함수를 이용해서 파일을 읽을지 결정하는 함수
         int[][] imageData =null;
         try (FileInputStream fis = new FileInputStream(infilepath)) {
             // BMP 파일 헤더 읽기 54바이트
@@ -60,19 +60,19 @@ public class BMPPanelInter extends PanelInter{
             byte[] imageDataByte = new byte[imageDataSize];
             fis.read(imageDataByte);
             dataOffSet -= 54;
-            if ( pixelPerBit == 24)
+            if ( pixelPerBit == 24) // 24비트 트루컬러 파일일때의 처리
             {
                 imageData = truecolorBMPreader(imageDataByte,imageData,dataOffSet);
             }
-            else if(Compression == 0)
+            else if(Compression == 0) // 일반 BMP 처리
             {
                 imageData = normalBMPreader(imageDataByte,imageData,dataOffSet,pixelPerBit, colorIndex);
             }
-            else if(Compression == 1)
+            else if(Compression == 1) // RLE8파일 처리
             {
                 imageData = RLE8BMPreader(imageDataByte,imageData,dataOffSet, fileSize);
             }
-            else if(Compression == 2)
+            else if(Compression == 2) // RLE4파일 처리
             {
                 imageData = RLE4BMPreader(imageDataByte,imageData,dataOffSet, fileSize);
             }
@@ -86,7 +86,7 @@ public class BMPPanelInter extends PanelInter{
         return imageData;
     }
 
-    private int[][] RLE4BMPreader(byte[] data, int[][] target, int start, int size)
+    private int[][] RLE4BMPreader(byte[] data, int[][] target, int start, int size) // RLE4 파일을 읽는 함수
     {
         int wIndex = 0;
         int hIndex = target.length-1;
@@ -170,7 +170,7 @@ public class BMPPanelInter extends PanelInter{
         }
         return temp;
     }
-    private int[][] truecolorBMPreader(byte[] data,int[][] target,int start)
+    private int[][] truecolorBMPreader(byte[] data,int[][] target,int start) // 24bit 트루컬러를 읽는 함수
     {
         isColor = true;
         int height = target.length;
@@ -187,7 +187,7 @@ public class BMPPanelInter extends PanelInter{
         }
         return target;
     }
-    private int[][] RLE8BMPreader(byte[] data, int[][] target, int start, int size)
+    private int[][] RLE8BMPreader(byte[] data, int[][] target, int start, int size) // RLE8 파일을 읽는 함수
     {
         int wIndex = 0;
         int hIndex = target.length-1;
@@ -250,7 +250,7 @@ public class BMPPanelInter extends PanelInter{
         return target;
     }
 
-    private int[][] normalBMPreader(byte[] data,int[][] target,int start, int bit, int colorIndex)
+    private int[][] normalBMPreader(byte[] data,int[][] target,int start, int bit, int colorIndex) // 일반 BMP파일을 읽는 함수
     {
         int width = target[0].length;
         int height = target.length;
@@ -320,9 +320,13 @@ public class BMPPanelInter extends PanelInter{
             }
         }
     }
-    public void saveImage(int[][] newImageData, int[][] drawData, String filePath, Boolean outColor)
+    public void saveImage(int[][] newImageData, int[][] drawData, String filePath, Boolean outColor) // 일반 BMP파일과 24비트 트루컬러 곧 압축되지 않은 이미지를 출력하는 함수.
     {
         int bit = bitCount(newImageData, drawData);
+        if(bit < 4)
+        {
+            bit =4;
+        }
         if(bit == 8)
         {
             int answer = JOptionPane.showConfirmDialog(Target,"RLE8 압축을 하시겠습니까?", "BMP파일 출력", JOptionPane.YES_NO_OPTION);
@@ -498,7 +502,7 @@ public class BMPPanelInter extends PanelInter{
         }
     }
 
-    private byte[] headerMake(int a , int[][] data,int bit, boolean outColor, int Compression)
+    private byte[] headerMake(int a , int[][] data,int bit, boolean outColor, int Compression) // 헤더부분을 구성하는 함수.
     {
         int temp = (int) Math.pow(2,bit) * 4;
         if(bit == 24)
@@ -571,13 +575,13 @@ public class BMPPanelInter extends PanelInter{
                 }
                 if(!buffer.contains(imageData[i][j]))
                 {
-                    if(buffer.size() > 256)
-                    {
-                        return 24;
-                    }
                     buffer.add(imageData[i][j]);
                 }
             }
+        }
+        if(buffer.size() > 256)
+        {
+            return 24;
         }
         for(int i = 0; i < 8; i++)
         {
@@ -590,7 +594,7 @@ public class BMPPanelInter extends PanelInter{
         return -1;
     }
 
-    public void saveImageRLE(int[][] newImageData, int bit, String filePath, Boolean outColor)
+    public void saveImageRLE(int[][] newImageData, int bit, String filePath, Boolean outColor) // RLE 이미지를 출력하는 함수
     {
         ArrayList<Byte> imagedata = new ArrayList<Byte>();
         for (int i = newImageData.length - 1; i >=0; i--)
@@ -603,7 +607,7 @@ public class BMPPanelInter extends PanelInter{
                 if(j == newImageData[0].length-1)
                 {
                     temp.add(newImageData[i][j]);
-                    Encode(imagedata,temp);
+                    EncodeRLE8(imagedata,temp);
                     break;
                 }
                 if (newImageData[i][j] == newImageData[i][j + 1])
@@ -623,7 +627,7 @@ public class BMPPanelInter extends PanelInter{
                     {
                         temp.add(newImageData[i][j]);
                     }
-                    Encode(imagedata,temp);
+                    EncodeRLE8(imagedata,temp);
                     temp.clear();
                     if(mode == 1)
                     {
@@ -638,8 +642,8 @@ public class BMPPanelInter extends PanelInter{
                 j++;
             }
             imagedata.add((byte) 0);
-            imagedata.add((byte) 1);
-        }
+            imagedata.add((byte) 0);
+        } // 이부분을 통해 파일 출력 이미지데이터를 만든다.
 
         byte[] header = headerMake(imagedata.size(), newImageData, bit, outColor, 1);
         byte[] colortable = null;
@@ -682,7 +686,7 @@ public class BMPPanelInter extends PanelInter{
                 data[i] = (byte) imagedata.get(i);
             }
             fos.write(data);
-            byte[] end = {00,00};
+            byte[] end = {00,01};
             fos.write(end);
         }
         catch(IOException e)
@@ -691,30 +695,49 @@ public class BMPPanelInter extends PanelInter{
         }
     }
 
-    private void Encode(ArrayList<Byte> imagedata, ArrayList<Integer> temp)
+
+
+    private int[][] dataEncoder(int[][] newImageData) {
+        int[][] encodeddata = new int[newImageData.length][newImageData[0].length/2];
+        for(int i = 0; i < newImageData.length; i++)
+        {
+            for(int j = 0; j < newImageData[0].length; j += 2)
+            {
+                int a = buffer.indexOf(newImageData[i][j]);
+                int b = buffer.indexOf(newImageData[i][j+1]);
+                a = (a<<4);
+                encodeddata[i][(int)j/2] = a+b;
+            }
+        }
+        return encodeddata;
+    }
+
+    private void EncodeRLE8(ArrayList<Byte> imagedata, ArrayList<Integer> temp) // Absolute 모드 한뭉치 또는 Endoced모드 한뭉치씩 입력을 받아 압축시킨다.
     {
         if(temp.size() == 0)// Encoded 모드 에서 Encoded 모드로 넘어갈때 ex) 5 5 5 5 6 6 6 6 일때 그냥 넘어가는 코드
         {
             return;
         }
-        if(temp.size() == 1)
+        if(temp.size() == 1)// 하나가 있으면 하나를 추가하는 형식
         {
             imagedata.add((byte) temp.size());
             imagedata.add((byte) buffer.indexOf(temp.get(0)));
         }
-
-        else if(Objects.equals(temp.get(0), temp.get(1)))
+        else if (temp.size()==2 && !Objects.equals(temp.get(0),temp.get(1))) // 두개가 있을때 00 02 가 만들어질 경우 쪼개서 압축하는 방식
+        {
+            imagedata.add((byte) 1);
+            imagedata.add((byte) buffer.indexOf(temp.get(0)));
+            imagedata.add((byte) 1);
+            imagedata.add((byte) buffer.indexOf(temp.get(1)));
+        }
+        else if(Objects.equals(temp.get(0), temp.get(1))) // Encode 모드
         {
             imagedata.add((byte) temp.size());
             imagedata.add((byte) buffer.indexOf(temp.get(0)));
         }
-        else
+        else//Absolute 모드
         {
             imagedata.add((byte) 0);
-            if(temp.size() %2 == 1)
-            {
-                temp.add(0);
-            }
             imagedata.add((byte) temp.size());
             for(int i = 0; i < temp.size(); i++)
             {
@@ -725,6 +748,12 @@ public class BMPPanelInter extends PanelInter{
                 }
                 imagedata.add((byte) buffer.indexOf(temp.get(i)));
             }
+            if((temp.size() %2) == 1)
+            {
+                imagedata.add((byte) 0);
+            }
         }
     }
+
+
 }

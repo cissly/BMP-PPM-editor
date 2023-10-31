@@ -121,11 +121,11 @@ public class imagePanel extends JPanel {
 
                     }
                     else if(isColor == false) { // PGM파일일 경우 에 색의 값을 뽑아내기 위한 코드
+                        pixelValue %= 1000;
                         if(invers == true) // PGM의 경우 색반전을 수행하기 위한 코드
                         {
                             pixelValue = 255- pixelValue;
                         }
-                        pixelValue %= 1000;
                         color =new Color(pixelValue,pixelValue,pixelValue);
                     }
 
